@@ -1,0 +1,49 @@
+export type AppointmentStatus = "Confirmed" | "Pending" | "Cancelled";
+export type BookingSource = "AI" | "Human";
+export type HumanRequestStatus = "Waiting" | "Assigned to You" | "Closed";
+
+export interface Doctor {
+  id: string;
+  name: string;
+  specialty: string;
+  description: string;
+  languages: string[];
+  availableToday: boolean;
+  availableTomorrow: boolean;
+  status: "Active" | "On Leave";
+}
+
+export interface Appointment {
+  id: string;
+  patient: string;
+  doctorId: string;
+  doctorName: string;
+  specialty: string;
+  date: string; // ISO yyyy-mm-dd
+  time: string;
+  source: BookingSource;
+  status: AppointmentStatus;
+  language: string;
+}
+
+export interface HumanRequest {
+  id: string;
+  patient: string;
+  language: string;
+  reason: string;
+  time: string;
+  status: HumanRequestStatus;
+}
+
+export interface Language {
+  code: string;
+  label: string;
+  native: string;
+}
+
+export interface Message {
+  id: string;
+  role: "ai" | "patient";
+  text: string;
+  time: string;
+}
