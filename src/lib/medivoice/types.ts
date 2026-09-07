@@ -1,4 +1,4 @@
-export type AppointmentStatus = "Confirmed" | "Pending" | "Cancelled";
+export type AppointmentStatus = "booked" | "cancelled" | "completed";
 export type BookingSource = "AI" | "Human";
 export type HumanRequestStatus = "Waiting" | "Assigned to You" | "Closed";
 
@@ -11,15 +11,20 @@ export interface Doctor {
   availableToday: boolean;
   availableTomorrow: boolean;
   status: "Active" | "On Leave";
+  consultationFee: number;
+  availableDays: string[];
+  availableTimeSlots: string[];
 }
 
 export interface Appointment {
   id: string;
   patient: string;
+  patientPhone: string;
+  patientEmail: string;
   doctorId: string;
   doctorName: string;
   specialty: string;
-  date: string; // ISO yyyy-mm-dd
+  date: string;
   time: string;
   source: BookingSource;
   status: AppointmentStatus;

@@ -41,13 +41,27 @@ export function DoctorAvailability({
   const [date, setDate] = useState("2026-09-10");
   const [slots, setSlots] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setSelected(null);
-    getDoctorAvailability(doctorId, date).then((res) => {
-      if (!cancelled) setSlots(res);
-    });
+    setLoading(true);
+    setError(null);
+    getDoctorAvailability(doctorId, date)
+      .then((res) => {
+        if (!cancelled) setSlots(Array.isArray(res) ? res : []);
+      })
+      .catch((reason: Error) => {
+        if (!cancelled) {
+          setSlots([]);
+          setError(reason.message);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -92,7 +106,11 @@ export function DoctorAvailability({
 
         <div className="space-y-2">
           <Label>Available slots</Label>
-          {slots.length === 0 ? (
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading availability...</p>
+          ) : error ? (
+            <p className="text-sm text-destructive">{error}</p>
+          ) : slots.length === 0 ? (
             <p className="text-sm text-muted-foreground">No slots for this date.</p>
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -119,7 +137,10 @@ export function DoctorAvailability({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button disabled={!selected} onClick={() => selected && onConfirm(doctorId, date, selected)}>
+          <Button
+            disabled={!selected}
+            onClick={() => selected && onConfirm(doctorId, date, selected)}
+          >
             Use This Slot
           </Button>
         </DialogFooter>

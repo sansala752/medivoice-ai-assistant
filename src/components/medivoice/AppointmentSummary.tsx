@@ -1,6 +1,8 @@
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export interface SummaryDraft {
   doctor: string;
@@ -8,6 +10,8 @@ export interface SummaryDraft {
   date: string;
   time: string;
   patient: string;
+  patientPhone: string;
+  patientEmail: string;
   language: string;
 }
 
@@ -18,6 +22,7 @@ interface Props {
   onChangeDetails: () => void;
   onViewAppointment: () => void;
   onStartNew: () => void;
+  onDraftChange: (changes: Partial<SummaryDraft>) => void;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -36,7 +41,20 @@ export function AppointmentSummary({
   onChangeDetails,
   onViewAppointment,
   onStartNew,
+  onDraftChange,
 }: Props) {
+  if (!confirmedId && !draft.doctor) {
+    return (
+      <Card className="p-6">
+        <h3 className="font-semibold">Appointment Summary</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Start a conversation with the assistant to book an appointment, and the details will
+          appear here.
+        </p>
+      </Card>
+    );
+  }
+
   if (confirmedId) {
     return (
       <Card className="p-6">
@@ -55,6 +73,9 @@ export function AppointmentSummary({
           <Row label="Doctor" value={draft.doctor} />
           <Row label="Date" value={draft.date} />
           <Row label="Time" value={draft.time} />
+          <Row label="Patient" value={draft.patient} />
+          <Row label="Phone" value={draft.patientPhone} />
+          <Row label="Email" value={draft.patientEmail} />
         </div>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           <Button onClick={onViewAppointment} className="sm:flex-1">
@@ -79,11 +100,49 @@ export function AppointmentSummary({
         <Row label="Specialty" value={draft.specialty} />
         <Row label="Date" value={draft.date} />
         <Row label="Time" value={draft.time} />
-        <Row label="Patient" value={draft.patient} />
-        <Row label="Language" value={draft.language} />
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="patient-name">Patient name</Label>
+            <Input
+              id="patient-name"
+              value={draft.patient}
+              onChange={(event) => onDraftChange({ patient: event.target.value })}
+              placeholder="Your full name"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="patient-phone">Phone number</Label>
+            <Input
+              id="patient-phone"
+              type="tel"
+              value={draft.patientPhone}
+              onChange={(event) => onDraftChange({ patientPhone: event.target.value })}
+              placeholder="+94 77 555 0110"
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="patient-email">Email address</Label>
+            <Input
+              id="patient-email"
+              type="email"
+              value={draft.patientEmail}
+              onChange={(event) => onDraftChange({ patientEmail: event.target.value })}
+              placeholder="you@example.com"
+            />
+          </div>
+        </div>
+        <div className="mt-3">
+          <Row label="Language" value={draft.language} />
+        </div>
       </div>
       <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-        <Button onClick={onConfirm} className="sm:flex-1">
+        <Button
+          onClick={onConfirm}
+          disabled={
+            !draft.patient.trim() || !draft.patientPhone.trim() || !draft.patientEmail.trim()
+          }
+          className="sm:flex-1"
+        >
           Confirm Appointment
         </Button>
         <Button variant="outline" onClick={onChangeDetails} className="sm:flex-1">

@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { TopNavigation } from "@/components/medivoice/TopNavigation";
 import { VoiceAssistant, type VoiceStatus } from "@/components/medivoice/VoiceAssistant";
 import { ConversationPanel } from "@/components/medivoice/ConversationPanel";
 import { AppointmentSummary, type SummaryDraft } from "@/components/medivoice/AppointmentSummary";
 import { DoctorAvailability } from "@/components/medivoice/DoctorAvailability";
 import { Button } from "@/components/ui/button";
-import { DOCTORS } from "@/lib/medivoice/data";
-import { createAppointment, createHumanRequest, voiceService } from "@/lib/medivoice/api";
-import type { Message } from "@/lib/medivoice/types";
+import { ApiError, createAppointment, createHumanRequest, getDoctors } from "@/lib/medivoice/api";
+import type { Doctor, Message } from "@/lib/medivoice/types";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -33,75 +33,160 @@ export const Route = createFileRoute("/")({
 const now = () =>
   new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
 
-const INITIAL_MESSAGES: Message[] = [
-  { id: "m1", role: "ai", text: "Hello! Welcome to MediVoice. How can I help you today?", time: "10:24 AM" },
-  { id: "m2", role: "patient", text: "I want to book an appointment with a cardiologist.", time: "10:25 AM" },
-  {
-    id: "m3",
-    role: "ai",
-    text: "Certainly. I found Dr. Sarah Perera, Cardiologist. What date would you prefer?",
-    time: "10:25 AM",
-  },
-  { id: "m4", role: "patient", text: "September 10.", time: "10:26 AM" },
-  {
-    id: "m5",
-    role: "ai",
-    text: "Dr. Sarah Perera is available at 9:00 AM, 10:30 AM, 2:00 PM and 3:30 PM.",
-    time: "10:26 AM",
-  },
-];
-
 const DEFAULT_DRAFT: SummaryDraft = {
-  doctor: "Dr. Sarah Perera",
-  specialty: "Cardiology",
-  date: "September 10, 2026",
-  time: "10:30 AM",
-  patient: "John Smith",
+  doctor: "",
+  specialty: "",
+  date: "",
+  time: "",
+  patient: "",
+  patientPhone: "",
+  patientEmail: "",
   language: "English",
 };
 
+type AppointmentSummaryToolParameters = {
+  doctor_name: string;
+  specialty: string;
+  appointment_date: string;
+  appointment_time: string;
+  patient_name: string;
+  patient_phone: string;
+  appointment_id: string;
+  action: "booked" | "cancelled";
+};
+
 function AssistantPage() {
+  return (
+    <ConversationProvider>
+      <AssistantPageContent />
+    </ConversationProvider>
+  );
+}
+
+function AssistantPageContent() {
   const navigate = useNavigate();
   const [language, setLanguage] = useState("English");
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
-  const [status, setStatus] = useState<VoiceStatus>("Ready to help");
-  const [active, setActive] = useState(false);
+  const [languageCode, setLanguageCode] = useState("en");
+  const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState<SummaryDraft>(DEFAULT_DRAFT);
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [doctorId, setDoctorId] = useState("doc-1");
+  const [selectedDate, setSelectedDate] = useState("2026-09-10");
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loadingDoctors, setLoadingDoctors] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const conversation = useConversation({
+    clientTools: {
+      display_appointment_summary: ({
+        doctor_name,
+        specialty,
+        appointment_date,
+        appointment_time,
+        patient_name,
+        patient_phone,
+        appointment_id,
+        action,
+      }: AppointmentSummaryToolParameters) => {
+        if (action === "cancelled") {
+          setConfirmedId(null);
+          setDraft({ ...DEFAULT_DRAFT, language });
+          return "Summary displayed";
+        }
 
-  const addMessage = (role: Message["role"], text: string) =>
+        setDraft((previous) => ({
+          ...previous,
+          doctor: doctor_name,
+          specialty,
+          date: appointment_date,
+          time: appointment_time,
+          patient: patient_name,
+          patientPhone: patient_phone,
+        }));
+        setConfirmedId(appointment_id);
+        return "Summary displayed";
+      },
+    },
+    onConnect: () => {
+      addMessage("ai", `Connected. I am ready to help you in ${language}.`);
+    },
+    onDisconnect: (details) => {
+      console.warn("ElevenLabs conversation disconnected:", details);
+      addMessage("ai", "The conversation has ended.");
+    },
+    onMessage: (message) => {
+      const event = message as {
+        source?: string;
+        role?: string;
+        message?: string;
+      };
+      const text = event.message?.trim();
+      const source = event.source ?? event.role;
+
+      if (!text) return;
+      if (source === "user") addMessage("patient", text);
+      if (source === "ai" || source === "agent") addMessage("ai", text);
+    },
+    onError: (error) => {
+      console.error("ElevenLabs conversation error:", error);
+      toast.error("The voice assistant could not connect. Please try again.");
+    },
+  });
+
+  const status: VoiceStatus =
+    conversation.status === "connected"
+      ? conversation.isSpeaking
+        ? "Speaking..."
+        : "Listening..."
+      : conversation.status === "connecting"
+        ? "Processing..."
+        : "Ready to help";
+  const active = conversation.status === "connected" || conversation.status === "connecting";
+
+  useEffect(() => {
+    getDoctors()
+      .then(setDoctors)
+      .catch((error: Error) => setApiError(error.message))
+      .finally(() => setLoadingDoctors(false));
+  }, []);
+
+  function addMessage(role: Message["role"], text: string) {
     setMessages((prev) => [...prev, { id: `${Date.now()}-${role}`, role, text, time: now() }]);
+  }
 
-  const startConversation = async () => {
-    await voiceService.startSession(language);
-    setActive(true);
-    setStatus("Listening...");
-    addMessage("ai", `Hello! I am ready to help you in ${language}. What would you like to do?`);
+  const startConversation = async (code = languageCode) => {
+    const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
+    if (!agentId || agentId === "REPLACE_WITH_REAL_AGENT_ID") {
+      toast.error("Configure VITE_ELEVENLABS_AGENT_ID before starting the assistant.");
+      return;
+    }
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const sessionOptions = {
+        agentId,
+        connectionType: "webrtc" as const,
+        ...(code !== "en" ? { overrides: { agent: { language: code } } } : {}),
+      };
+      conversation.startSession(sessionOptions);
+    } catch (error) {
+      console.error("Unable to start ElevenLabs conversation:", error);
+      toast.error("Microphone permission is required to start the voice assistant.");
+    }
   };
 
   const endConversation = async () => {
-    await voiceService.stopSession("current");
-    setActive(false);
-    setStatus("Ready to help");
-    addMessage("ai", "Thank you for using MediVoice. Take care!");
+    conversation.endSession();
   };
 
-  const toggleMic = () => setStatus(status === "Listening..." ? "Processing..." : "Listening...");
+  const toggleMic = () => conversation.setMuted(!conversation.isMuted);
 
   const handleSend = async (text: string) => {
+    if (!active) {
+      toast.error("Start the conversation before sending a message.");
+      return;
+    }
     addMessage("patient", text);
-    await voiceService.sendUtterance(text);
-    setStatus("Processing...");
-    setTimeout(() => {
-      setStatus("Speaking...");
-      addMessage(
-        "ai",
-        `I have noted that in ${language}. Please review the appointment summary and confirm when ready.`,
-      );
-      setTimeout(() => setStatus(active ? "Listening..." : "Ready to help"), 800);
-    }, 600);
+    conversation.sendUserMessage(text);
   };
 
   const requestHuman = async () => {
@@ -116,31 +201,44 @@ function AssistantPage() {
   };
 
   const confirm = async () => {
-    const appointment = await createAppointment({
-      patient: draft.patient,
-      doctorId,
-      doctorName: draft.doctor,
-      specialty: draft.specialty,
-      date: "2026-09-10",
-      time: draft.time,
-      source: "AI",
-      language,
-    });
-    setConfirmedId(appointment.id);
-    addMessage("ai", `Your appointment is confirmed. Your appointment ID is ${appointment.id}.`);
+    try {
+      const appointment = await createAppointment({
+        patient: draft.patient,
+        patientPhone: draft.patientPhone,
+        patientEmail: draft.patientEmail,
+        doctorId,
+        doctorName: draft.doctor,
+        specialty: draft.specialty,
+        date: selectedDate,
+        time: draft.time,
+        source: "AI",
+        language,
+      });
+      setConfirmedId(appointment.id);
+      addMessage("ai", `Your appointment is confirmed. Your appointment ID is ${appointment.id}.`);
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError && error.status === 409
+          ? "The selected time is no longer available. Please choose another time."
+          : error instanceof Error
+            ? error.message
+            : "Unable to book appointment",
+      );
+    }
   };
 
   const startNew = () => {
     setConfirmedId(null);
+    setSelectedDate("2026-09-10");
     setDraft({ ...DEFAULT_DRAFT, language });
-    setMessages(INITIAL_MESSAGES);
-    setStatus("Ready to help");
-    setActive(false);
+    setMessages([]);
   };
 
   const applySlot = (id: string, date: string, slot: string) => {
-    const doctor = DOCTORS.find((d) => d.id === id)!;
+    const doctor = doctors.find((d) => d.id === id);
+    if (!doctor) return;
     setDoctorId(id);
+    setSelectedDate(date);
     setDraft((prev) => ({
       ...prev,
       doctor: doctor.name,
@@ -157,17 +255,35 @@ function AssistantPage() {
     addMessage("ai", `Updated to ${doctor.name} on ${date} at ${slot}. Shall I confirm?`);
   };
 
-  const changeLanguage = (value: string) => {
-    setLanguage(value);
-    setDraft((prev) => ({ ...prev, language: value }));
-    addMessage("ai", `Switching to ${value}. I will continue the booking in ${value}.`);
+  const changeLanguage = async (code: string, label: string) => {
+    setLanguage(label);
+    setLanguageCode(code);
+    setDraft((prev) => ({ ...prev, language: label }));
+
+    if (active) {
+      toast.info(`Restarting the conversation in ${label}...`);
+      await conversation.endSession();
+      await startConversation(code);
+      return;
+    }
+
+    addMessage("ai", `Switching to ${label}. I will continue the booking in ${label}.`);
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <TopNavigation language={language} onLanguageChange={changeLanguage} />
+      <TopNavigation
+        languageCode={languageCode}
+        language={language}
+        onLanguageChange={changeLanguage}
+      />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+        {apiError ? (
+          <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {apiError}
+          </p>
+        ) : null}
         <div className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight">AI Appointment Assistant</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -181,7 +297,7 @@ function AssistantPage() {
               status={status}
               active={active}
               language={language}
-              onStart={startConversation}
+              onStart={() => startConversation()}
               onEnd={endConversation}
               onToggleMic={toggleMic}
             />
@@ -189,12 +305,13 @@ function AssistantPage() {
               draft={{ ...draft, language }}
               confirmedId={confirmedId}
               onConfirm={confirm}
+              onDraftChange={(changes) => setDraft((prev) => ({ ...prev, ...changes }))}
               onChangeDetails={() => setAvailabilityOpen(true)}
               onViewAppointment={() => navigate({ to: "/staff/appointments" })}
               onStartNew={startNew}
             />
             <Button variant="outline" className="w-full" onClick={() => setAvailabilityOpen(true)}>
-              Check doctor availability
+              {loadingDoctors ? "Loading doctors..." : "Check doctor availability"}
             </Button>
           </div>
 
@@ -211,7 +328,7 @@ function AssistantPage() {
       <DoctorAvailability
         open={availabilityOpen}
         onOpenChange={setAvailabilityOpen}
-        doctors={DOCTORS}
+        doctors={doctors}
         doctorId={doctorId}
         onDoctorChange={setDoctorId}
         onConfirm={applySlot}

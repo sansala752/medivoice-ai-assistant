@@ -21,14 +21,7 @@ const STATUS_TONE: Record<VoiceStatus, string> = {
   "Speaking...": "text-primary",
 };
 
-export function VoiceAssistant({
-  status,
-  active,
-  language,
-  onStart,
-  onEnd,
-  onToggleMic,
-}: Props) {
+export function VoiceAssistant({ status, active, language, onStart, onEnd, onToggleMic }: Props) {
   const listening = status === "Listening...";
 
   return (

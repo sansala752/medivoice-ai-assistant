@@ -47,7 +47,10 @@ export function AppointmentTable({
         <TableBody>
           {appointments.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={showActions ? 8 : 7} className="py-8 text-center text-muted-foreground">
+              <TableCell
+                colSpan={showActions ? 8 : 7}
+                className="py-8 text-center text-muted-foreground"
+              >
                 No appointments match your filters.
               </TableCell>
             </TableRow>

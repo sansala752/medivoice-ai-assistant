@@ -1,656 +1,208 @@
 # MediVoice AI Assistant
 
-Build a simple, professional web application UI called "MediVoice" — a multilingual AI medical appointment booking system.
+MediVoice is a medical appointment booking prototype with:
 
-IMPORTANT:
+- React, TypeScript, Vite, and the existing Lovable/TanStack Start UI
+- FastAPI and SQLAlchemy backend
+- SQLite for local development or PostgreSQL through Docker
+- Backend-authoritative doctor availability and booking validation
+- ElevenLabs Conversational AI integration for voice booking
 
-This is an interview MVP. Focus on clean UI/UX, realistic functionality, and a structure that can later connect to a FastAPI REST API and MySQL database. Do not over-engineer the UI.
+## Project structure
 
-TECH STACK:
+```text
+src/                         React frontend
+src/routes/                  TanStack routes
+src/components/medivoice/   Patient and shared UI components
+src/lib/medivoice/           Frontend API client and types
+backend/app/                 FastAPI application
+backend/app/models/          SQLAlchemy models
+backend/app/schemas/         Pydantic request/response schemas
+backend/app/routers/         API routes
+backend/app/services/        Booking business logic
+backend/tests/               Backend API tests
+docker-compose.yml           Local PostgreSQL service
+```
 
-- React
+## Requirements
 
-- TypeScript
+- Node.js and npm
+- Python 3.11+
+- Docker Desktop, if using PostgreSQL
 
-- Vite
+## Environment variables
 
-- Tailwind CSS
+Copy the examples before starting the application:
 
-- Lucide React icons
+```powershell
+Copy-Item .env.example .env.local
+Copy-Item backend/.env.example backend/.env
+```
 
-- Use reusable components
+Frontend `.env.local`:
 
-- No unnecessary animations
+```env
+VITE_API_URL=http://localhost:8000/api
+VITE_ELEVENLABS_AGENT_ID=REPLACE_WITH_REAL_AGENT_ID
+```
 
-- Responsive desktop and mobile design
+Backend `.env`:
 
-DESIGN:
+```env
+DATABASE_URL=sqlite:///./medivoice.db
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080
+```
 
-- Modern healthcare SaaS dashboard
+For PostgreSQL, use a URL such as:
 
-- Clean, minimal, professional appearance
+```env
+DATABASE_URL=postgresql+psycopg://medivoice:medivoice@localhost:5432/medivoice
+```
 
-- White/light gray background
+Never commit `.env`, `.env.local`, database credentials, or ElevenLabs secrets.
 
-- Primary color: deep blue
+## Start with SQLite
 
-- Secondary accent: teal
+SQLite is the default local database and requires no separate service.
 
-- Rounded cards
+```powershell
+# From the repository root
+cd backend
+..\.venv\Scripts\python.exe -m pip install -r requirements.txt
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-- Subtle borders and shadows
+If the virtual environment does not exist yet:
 
-- Good typography and spacing
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+```
 
-- Avoid excessive gradients
+The backend creates the schema and seeds exactly five doctors on startup. The local SQLite file is `backend/medivoice.db`.
 
-- The application should look like a real healthcare product rather than a generic AI chatbot.
+## Start with PostgreSQL
 
-APPLICATION STRUCTURE:
+```powershell
+docker compose up -d postgres
+cd backend
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-Create two main areas:
+Set the PostgreSQL `DATABASE_URL` in `backend/.env` before starting the API. The prototype uses SQLAlchemy `create_all`; use Alembic migrations before production deployment.
 
-1. PATIENT / AI VOICE ASSISTANT
+## Start the frontend
 
-2. STAFF / ADMIN DASHBOARD
+From the repository root:
 
---------------------------------------------------
-
-PATIENT AI VOICE ASSISTANT
-
---------------------------------------------------
-
-Create a page called "AI Appointment Assistant".
-
-Layout:
-
-Top navigation:
-
-- MediVoice logo/icon
-
-- "AI Appointment Assistant"
-
-- Language selector
-
-- "Staff Login" button
-
-Main content should have two columns on desktop.
-
-LEFT:
-
-A large voice assistant card.
-
-Show:
-
-- AI assistant avatar
-
-- Microphone button in the center
-
-- Voice status such as:
-
-  "Ready to help"
-
-  "Listening..."
-
-  "Processing..."
-
-  "Speaking..."
-
-- Start Conversation button
-
-- End Conversation button
-
-Use a professional microphone icon.
-
-RIGHT:
-
-Conversation transcript panel.
-
-Example conversation:
-
-AI:
-
-"Hello! Welcome to MediVoice. How can I help you today?"
-
-Patient:
-
-"I want to book an appointment with a cardiologist."
-
-AI:
-
-"Certainly. I found Dr. Sarah Perera, Cardiologist. What date would you prefer?"
-
-Patient:
-
-"September 10."
-
-AI:
-
-"Dr. Sarah Perera is available at 9:00 AM, 10:30 AM, 2:00 PM and 3:30 PM."
-
-Include timestamps.
-
-Below the transcript:
-
-- Text input
-
-- Send button
-
-- Microphone button
-
-Add a small status indicator:
-
-"AI Assistant Online"
-
---------------------------------------------------
-
-LANGUAGE SELECTOR
-
---------------------------------------------------
-
-Create a dropdown with these 10 languages:
-
-English
-
-Sinhala
-
-Tamil
-
-Hindi
-
-Arabic
-
-French
-
-German
-
-Spanish
-
-Japanese
-
-Mandarin Chinese
-
-Show the selected language clearly.
-
-The UI should make it obvious that the AI can conduct the appointment booking conversation in the selected language.
-
---------------------------------------------------
-
-APPOINTMENT CONFIRMATION
-
---------------------------------------------------
-
-After the AI collects the required information, display a confirmation card.
-
-Example:
-
-Appointment Summary
-
-Doctor:
-
-Dr. Sarah Perera
-
-Specialty:
-
-Cardiology
-
-Date:
-
-September 10, 2026
-
-Time:
-
-10:30 AM
-
-Patient:
-
-John Smith
-
-Language:
-
-English
-
-Buttons:
-
-[Confirm Appointment]
-
-[Change Details]
-
-After confirmation show:
-
-✓ Appointment Confirmed
-
-Appointment ID:
-
-MED-1024
-
-Buttons:
-
-[View Appointment]
-
-[Start New Booking]
-
---------------------------------------------------
-
-DOCTORS PAGE
-
---------------------------------------------------
-
-Create a "Doctors" page.
-
-Display exactly 5 doctors.
-
-Use realistic fictional data:
-
-1. Dr. Sarah Perera
-
-   Cardiology
-
-2. Dr. Michael Silva
-
-   Neurology
-
-3. Dr. Nadeesha Fernando
-
-   Dermatology
-
-4. Dr. James Wilson
-
-   General Medicine
-
-5. Dr. Anjali Kumar
-
-   Pediatrics
-
-Each doctor card should show:
-
-- Doctor name
-
-- Specialty
-
-- Short description
-
-- Available today/tomorrow indicator
-
-- "View Availability" button
-
---------------------------------------------------
-
-AVAILABILITY
-
---------------------------------------------------
-
-Create an availability modal/page.
-
-Allow the user to select:
-
-- Doctor
-
-- Date
-
-Then display available appointment slots:
-
-09:00 AM
-
-10:30 AM
-
-02:00 PM
-
-03:30 PM
-
-Use selectable slot buttons.
-
-Selected slot should be visually highlighted.
-
---------------------------------------------------
-
-STAFF DASHBOARD
-
---------------------------------------------------
-
-Create a separate staff dashboard.
-
-Sidebar:
-
-MediVoice
-
-Dashboard
-
-Appointments
-
-Doctors
-
-Patients
-
-AI Requests
-
-Human Requests
-
-Settings
-
-Top bar:
-
-- Search
-
-- Notifications
-
-- Staff profile
-
-Dashboard cards:
-
-Today's Appointments
-
-24
-
-AI Bookings
-
-12
-
-Human Bookings
-
-8
-
-Pending Requests
-
-4
-
-Below the cards create a "Today's Appointments" table.
-
-Columns:
-
-Patient
-
-Doctor
-
-Specialty
-
-Date
-
-Time
-
-Source
-
-Status
-
-Example:
-
-John Smith
-
-Dr. Sarah Perera
-
-Cardiology
-
-Sep 10
-
-10:30 AM
-
-AI
-
-Confirmed
-
-Maria Silva
-
-Dr. Anjali Kumar
-
-Pediatrics
-
-Sep 10
-
-11:00 AM
-
-Human
-
-Confirmed
-
-David Chen
-
-Dr. Michael Silva
-
-Neurology
-
-Sep 10
-
-2:00 PM
-
-AI
-
-Pending
-
-Use badges for:
-
-Confirmed
-
-Pending
-
-Cancelled
-
-Use badges for booking source:
-
-AI
-
-Human
-
---------------------------------------------------
-
-HUMAN HANDOFF
-
---------------------------------------------------
-
-Create an "AI Requests" / "Human Requests" page.
-
-Show requests generated when a patient asks to speak to a human.
-
-Example:
-
-Patient: John Smith
-
-Language: Sinhala
-
-Reason: Patient requested human assistance
-
-Time: 10:32 AM
-
-Status: Waiting
-
-Buttons:
-
-[Accept Request]
-
-[View Conversation]
-
-When accepted, change status to:
-
-"Assigned to You"
-
---------------------------------------------------
-
-APPOINTMENTS PAGE
-
---------------------------------------------------
-
-Create an appointments management page.
-
-Features:
-
-- Search appointments
-
-- Filter by doctor
-
-- Filter by status
-
-- Filter by booking source
-
-- Date filter
-
-Actions:
-
-- View
-
-- Reschedule
-
-- Cancel
-
-Use mock data for now.
-
---------------------------------------------------
-
-DOCTORS MANAGEMENT
-
---------------------------------------------------
-
-Staff should be able to view the 5 doctors.
-
-Show:
-
-- Name
-
-- Specialty
-
-- Languages
-
-- Availability
-
-- Status
-
-Add:
-
-"+ Add Doctor"
-
-button, but this can be a UI-only interaction for now.
-
---------------------------------------------------
-
-IMPORTANT UX BEHAVIOR
-
---------------------------------------------------
-
-The application should feel functional even though the backend is currently mocked.
-
-Implement frontend state for:
-
-- Starting/stopping voice conversation
-
-- Selecting language
-
-- Selecting doctor
-
-- Selecting date
-
-- Selecting appointment slot
-
-- Confirming appointment
-
-- Human handoff
-
-- Appointment status
-
-- Dashboard statistics
-
-Do NOT build a real voice API yet.
-
-Create clean placeholder functions/services so that a real FastAPI backend can later replace the mock data.
-
-For example, structure API calls conceptually around:
-
-GET /api/doctors
-
-GET /api/doctors/{id}/availability
-
-POST /api/appointments
-
-GET /api/appointments
-
-PUT /api/appointments/{id}
-
-DELETE /api/appointments/{id}
-
-POST /api/human-requests
-
-GET /api/human-requests
-
-Do not hardcode the UI around a specific AI provider.
-
---------------------------------------------------
-
-COMPONENTS
-
---------------------------------------------------
-
-Create reusable components:
-
-VoiceAssistant
-
-ConversationPanel
-
-LanguageSelector
-
-DoctorCard
-
-DoctorAvailability
-
-AppointmentSummary
-
-AppointmentTable
-
-DashboardCard
-
-StatusBadge
-
-HumanRequestCard
-
-Sidebar
-
-TopNavigation
-
---------------------------------------------------
-
-FINAL REQUIREMENTS
-
---------------------------------------------------
-
-Make the application polished enough to demonstrate during a software engineering interview.
-
-Prioritize:
-
-1. Clear user flow
-
-2. Professional healthcare UI
-
-3. Voice AI concept
-
-4. Multilingual support
-
-5. Appointment booking
-
-6. Human handoff
-
-7. Staff dashboard
-
-8. Extensible component architecture
-
-Keep the UI simple and fast.
-
-Do not add unnecessary features such as payments, medical records, prescriptions, insurance processing, or complex authentication.
-
-Use fictional doctors and fictional patient information only.
-
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/de74d9b0-a6d4-451a-ad09-1763dd3a249f).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+```powershell
+npm install
 npm run dev
 ```
+
+The frontend normally runs at `http://localhost:5173`. In this workspace it may run at `http://localhost:8080`.
+
+The frontend calls the backend through the centralized API client at `src/lib/medivoice/api.ts`.
+
+## API
+
+Interactive Swagger documentation:
+
+```text
+http://localhost:8000/docs
+```
+
+Endpoints:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/health` | Health check |
+| GET | `/api/doctors` | List the five doctors |
+| GET | `/api/doctors/{doctor_id}` | Get one doctor |
+| GET | `/api/doctors/{doctor_id}/availability?date=YYYY-MM-DD` | Get active slots |
+| POST | `/api/appointments` | Book an appointment |
+| GET | `/api/appointments/{appointment_id}` | Retrieve an appointment |
+| DELETE | `/api/appointments/{appointment_id}` | Cancel an appointment |
+
+Availability response:
+
+```json
+{
+  "doctor_id": "doc-1",
+  "date": "2026-09-15",
+  "available_slots": ["09:00 AM", "10:30 AM"]
+}
+```
+
+Booking request:
+
+```json
+{
+  "patient_name": "John Smith",
+  "patient_phone": "+94 77 555 0110",
+  "patient_email": "john.smith@example.com",
+  "doctor_id": "doc-1",
+  "appointment_date": "2026-09-15",
+  "appointment_time": "09:00 AM",
+  "booking_source": "human",
+  "language": "English"
+}
+```
+
+The backend validates patient details, doctor schedule, past dates, slot availability, and duplicate bookings. A duplicate active booking returns `409 Conflict`. Cancelled appointments remain in the database for history and release their slot.
+
+## Doctors
+
+The backend seeds exactly these five doctors:
+
+- Dr. Sarah Wilson, Cardiology
+- Dr. Michael Brown, General Medicine
+- Dr. Emily Davis, Dermatology
+- Dr. James Anderson, Orthopedics
+- Dr. Olivia Taylor, Pediatrics
+
+The frontend loads doctors and availability from FastAPI. It does not calculate availability locally.
+
+## ElevenLabs voice integration
+
+The browser integration uses `@elevenlabs/react` and `VITE_ELEVENLABS_AGENT_ID`.
+
+The assistant uses these logical tools against the same backend API:
+
+- `get_doctors` -> `GET /api/doctors`
+- `get_doctor_availability` -> `GET /api/doctors/{doctor_id}/availability?date=YYYY-MM-DD`
+- `book_appointment` -> `POST /api/appointments`
+- `cancel_appointment` -> `DELETE /api/appointments/{appointment_id}`
+
+The frontend also registers a `display_appointment_summary` client tool so AI-created or cancelled appointments update the existing summary UI. Replace the placeholder agent ID with the real ID from ElevenLabs before starting a voice session.
+
+## Tests and checks
+
+Run backend tests:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest backend/tests -q
+```
+
+Run the frontend build:
+
+```powershell
+npm run build
+```
+
+Run lint:
+
+```powershell
+npm run lint
+```
+
+The test suite covers doctor retrieval, availability, valid booking, duplicate booking prevention, invalid doctors and slots, past dates, appointment retrieval, cancellation, rebooking after cancellation, and health checks.
+
+## Known limitations
+
+- Authentication and staff authorization are not implemented.
+- The staff dashboard child routes are not complete.
+- Startup schema creation is used instead of Alembic migrations.
+- Audit logging, rate limiting, monitoring, and healthcare compliance controls are not implemented.
+- The ElevenLabs agent must be configured separately in the ElevenLabs dashboard.
+- Production deployment should use managed PostgreSQL, secrets management, migrations, and HTTPS.

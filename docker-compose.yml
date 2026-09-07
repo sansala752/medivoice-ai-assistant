@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: medivoice
+      POSTGRES_USER: medivoice
+      POSTGRES_PASSWORD: medivoice
+    ports:
+      - "5432:5432"
+    volumes:
+      - medivoice-postgres:/var/lib/postgresql/data
+
+volumes:
+  medivoice-postgres:

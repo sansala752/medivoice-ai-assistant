@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "./LanguageSelector";
 
 interface Props {
+  languageCode: string;
   language: string;
-  onLanguageChange: (language: string) => void;
+  onLanguageChange: (code: string, label: string) => void;
 }
 
-export function TopNavigation({ language, onLanguageChange }: Props) {
+export function TopNavigation({ languageCode, language, onLanguageChange }: Props) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
@@ -38,7 +39,7 @@ export function TopNavigation({ language, onLanguageChange }: Props) {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <LanguageSelector value={language} onChange={onLanguageChange} />
+          <LanguageSelector value={languageCode} onChange={onLanguageChange} />
           <Button asChild variant="outline">
             <Link to="/staff">
               <LogIn className="size-4" />
